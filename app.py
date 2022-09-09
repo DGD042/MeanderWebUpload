@@ -173,29 +173,45 @@ app.layout = html.Div(
                  children='New Meander'),
     ],
 )
-# app.layout = html.Div([html.Div('Meander Selector V 0.0.1'),
-#                        html.H1('Reach 0'),
-#                        html.Button('New Meander', id='new-meander', n_clicks=0),
-#                        html.Div(id='meanders-created',
-#                                 children='New Meander'),
-#                        dcc.Store(id='meanders', data=data_meander),
-#                        dcc.Dropdown(data_meander['id_meanders'], 'All',
-#                                     id='meander-dropdown',
-#                                     clearable=False),
-#                        dcc.Graph(id='figure-general', figure=fig),
-#                        html.Div([
-#                            dcc.Markdown("""
-#                                  **Click Data**
-#
-#                                  Click on points in the graph.
-#                              """),
-#                            html.Pre(id='click-data', style=styles['pre'])],
-#                            id='clickd'),
-#                        ])
 
-# Create Figure
 
-# Add new Meander
+# ------------------
+# Classes
+# ------------------
+class DataMeander:
+    def __init__(self, data):
+        self.data = data
+        return
+
+    def add_data(self):
+        return
+
+
+# ------------------
+# Functions
+# ------------------
+# Figures
+def update_meander_points(fig, data_reach, points_selected):
+    n_points = len(points_selected)
+    if n_points == 1:
+        x_sel_1 = [data_reach['x'][points_selected[-1]]]
+        y_sel_1 = [data_reach['y'][points_selected[-1]]]
+        fig.add_trace(go.Scatter(x=x_sel_1, y=y_sel_1, mode='markers',
+                                 marker=dict(color='red')))
+    if n_points >= 2:
+        x_sel_2 = [data_reach['x'][points_selected[-1]]]
+        y_sel_2 = [data_reach['y'][points_selected[-1]]]
+        fig.add_trace(go.Scatter(x=x_sel_2, y=y_sel_2, mode='markers',
+                                 marker=dict(color='red')))
+        x_sel = data_reach['x'][min(points_selected): max(points_selected)]
+        y_sel = data_reach['y'][min(points_selected): max(points_selected)]
+        fig.add_trace(go.Scatter(x=x_sel, y=y_sel, line=dict(color='red')))
+
+    return fig
+
+# ------------------
+# Callbacks
+# ------------------
 @app.callback(
     Output('meanders-created', 'children'),
     Output('new-meander', 'n_clicks'),
@@ -236,24 +252,6 @@ def new_meander(n_clicks, clickData, data_meander):
         n_clicks = 0
     return (msg, n_clicks, fig, clickData, data_meander)
 
-
-def update_meander_points(fig, data_reach, points_selected):
-    n_points = len(points_selected)
-    if n_points == 1:
-        x_sel_1 = [data_reach['x'][points_selected[-1]]]
-        y_sel_1 = [data_reach['y'][points_selected[-1]]]
-        fig.add_trace(go.Scatter(x=x_sel_1, y=y_sel_1, mode='markers',
-                                 marker=dict(color='red')))
-    if n_points >= 2:
-        x_sel_2 = [data_reach['x'][points_selected[-1]]]
-        y_sel_2 = [data_reach['y'][points_selected[-1]]]
-        fig.add_trace(go.Scatter(x=x_sel_2, y=y_sel_2, mode='markers',
-                                 marker=dict(color='red')))
-        x_sel = data_reach['x'][min(points_selected): max(points_selected)]
-        y_sel = data_reach['y'][min(points_selected): max(points_selected)]
-        fig.add_trace(go.Scatter(x=x_sel, y=y_sel, line=dict(color='red')))
-
-    return fig
 
 # Remove new Meander
 @app.callback(
