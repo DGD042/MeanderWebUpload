@@ -25,7 +25,7 @@ import numpy as np
 from scipy import interpolate
 from scipy.interpolate import UnivariateSpline
 import pandas as pd
-# Utilities package
+# MeanderCONUS Packages
 from utilities import classExceptions as CE
 from utilities import filesManagement as FM
 from utilities import statistics as ST
@@ -158,7 +158,7 @@ class CompleteReachExtraction:
             self.logger.info(f"Setting save_format to '{save_format}'")
             self._save_format = save_format
 
-    def map_complete_reach(self, start_comid):
+    def map_complete_reach(self, start_comid, huc_number=4):
         """
         DESCRIPTION:
             Separate complete reach comid from the ToNode and FromNode
@@ -177,6 +177,9 @@ class CompleteReachExtraction:
         # comid = self.data_info['NHDPlusID'].values.astype(str)
         comid = np.array(self.data_info.index)
         from_node = self.data_info['FromNode'].values
+        huc_n = self.data_info.loc[start_comid, f'HUC{huc_number:02d}']
+        data_info = self.data_info[
+            self.data_info[f'HUC{huc_number:02d}'] == huc_n]
         # div = self.data_info['Divergence'].values
 
         c_comid = start_comid
@@ -185,18 +188,13 @@ class CompleteReachExtraction:
         while True:
 
             # Get to and from nodes
-            from_i = self.data_info.loc[c_comid, 'FromNode']
-            to_i = self.data_info.loc[c_comid, 'ToNode']
+            to_i = data_info.loc[c_comid, 'ToNode']
 
-            # See if the current node is available
-            # if len(from_i) == 0:
-            #     break
             # Save Data
             comid_network[i] = c_comid
             # Extract new comid
-            c_comid = self.data_info.index[
-                self.data_info['FromNode'] == to_i]
-            # c_comid = comid[(from_node == to_i)]
+            c_comid = data_info.index[
+                data_info['FromNode'] == to_i]
             if len(c_comid) == 0:
                 break
             else:
@@ -218,18 +216,22 @@ class CompleteReachExtraction:
         # Generate Loop
         data = {}
         for huc in self.huc_04:
-            # Load File
-            # file_data = 'data/coordinates/HUC04_1703_coordiantes_p_102003.p'
-            coordinates = FM.load_data(f'{self.path_coordinates}HUC04'
-                                       f'_{huc}_coordiantes_p_102003.p')
-
             c_all = comid_list[huc_04s == huc]
+            file_coords = (f'{self.path_coordinates}HUC04_'
+                           f'{huc}_coordinates_p_102003.hdf5')
+            # Load File
+            if file_coords.split('.')[-1] == 'hdf5':
+                keys = [str(i) for i in c_all]
+                coordinates = FM.load_data(f'{file_coords}', keys=keys)
+                coordinates = {float(i): coordinates[i] for i in keys}
+            else:
+                coordinates = FM.load_data(f'{file_coords}')
             # -----------------
             # Get coordinates
             # -----------------
-            lengths = [len(coordinates[float(i)][0]) for i in c_all]
-            xx = [item for i in c_all for item in coordinates[float(i)][0]]
-            yy = [item for i in c_all for item in coordinates[float(i)][1]]
+            lengths = [len(coordinates[i][0]) for i in c_all]
+            xx = [item for i in c_all for item in coordinates[i][0]]
+            yy = [item for i in c_all for item in coordinates[i][1]]
             indices = np.unique(xx, return_index=True)[1]
             x = np.array([xx[i] for i in sorted(indices)])
             y = np.array([yy[i] for i in sorted(indices)])
@@ -242,11 +244,11 @@ class CompleteReachExtraction:
             # -----------------------------
             # Additional values
             # -----------------------------
-            comid_values = [float(i) for i in c_all for item in coordinates[
-                float(i)][0]]
+            comid_values = [
+                float(i) for i in c_all for item in coordinates[i][0]]
             comid_values = np.array([comid_values[i] for i in sorted(indices)])
-            so = [so_values[i] for i in c_all for item in
-                  coordinates[float(i)][0]]
+            so = [so_values[float(i)] for i in c_all for item in
+                  coordinates[i][0]]
             so = np.array([so[i] for i in sorted(indices)])
             # -----------------------------
             # Include Elevation

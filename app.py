@@ -51,7 +51,7 @@ def generate_random_reach(path_data, path_out):
     # Get Headwaters
     headwaters = data_1703_pd[data_1703_pd['StartFlag'] == 1]
     # i = 0
-    i = np.random.randint(0, len(data_1703_pd))
+    i = np.random.randint(0, len(headwaters))
     comid = headwaters.iloc[i, 0]
 
     # --------------------------
@@ -60,35 +60,21 @@ def generate_random_reach(path_data, path_out):
     # time2 = time.time()
     reach_generator = CRE(data_1703_pd, path_data)
     del data_1703_pd
-    # time1 = time.time()
-    comid_network = reach_generator.map_complete_reach(comid)
-    # utl.toc(time1)
-    # time1 = time.time()
+    comid_network = reach_generator.map_complete_reach(comid, 8)
     data = reach_generator.map_coordinates(comid_network)
-    # utl.toc(time1)
-    # time1 = time.time()
     data_fitted = reach_generator.fit_splines(data)
-    # utl.toc(time1)
-    # utl.toc(time2)
-
-    # x = data['x'].values
-    # y = data['y'].values
-    # x_poly = data_fitted['x_poly'].values
-    # y_poly = data_fitted['y_poly'].values
-
-    # --------------------------
-    # Plot
-    # --------------------------
+    del data
     return data_fitted, i
 
 
 def load_river(figure_river, n_clicks_load_river):
+    global data_reach
     if n_clicks_load_river >= 1:
-        path_data = 'demo_data/test_NUC04_1703_database/coordinates/'
-        path_out = 'demo_data/test_NUC04_1703_database/'
+        path_data = 'data/test_NUC04_1703_database/coordinates/'
+        path_out = 'data/test_NUC04_1703_database/'
         data_reach, id_reach = generate_random_reach(path_data, path_out)
-        x = data_reach['x_poly']
-        y = data_reach['y_poly']
+        x = data_reach['x_poly'].values
+        y = data_reach['y_poly'].values
         figure_river = new_river_plot(x, y, id_reach)
         n_clicks_load_river = 0
     return figure_river, n_clicks_load_river
@@ -128,17 +114,19 @@ def new_meander(fig_river, n_clicks, clickData, data_meander):
 def update_meander_points(fig, data_reach, points_selected):
     n_points = len(points_selected)
     if n_points == 1:
-        x_sel_1 = [data_reach['x'][points_selected[-1]]]
-        y_sel_1 = [data_reach['y'][points_selected[-1]]]
+        x_sel_1 = [data_reach['x_poly'].values[points_selected[-1]]]
+        y_sel_1 = [data_reach['y_poly'].values[points_selected[-1]]]
         fig.add_trace(go.Scatter(x=x_sel_1, y=y_sel_1, mode='markers',
                                  marker=dict(color='red')))
     if n_points >= 2:
-        x_sel_2 = [data_reach['x'][points_selected[-1]]]
-        y_sel_2 = [data_reach['y'][points_selected[-1]]]
-        fig.add_trace(go.Scatter(x=x_sel_2, y=y_sel_2, mode='markers',
-                                 marker=dict(color='red')))
-        x_sel = data_reach['x'][min(points_selected): max(points_selected)]
-        y_sel = data_reach['y'][min(points_selected): max(points_selected)]
+        # x_sel_2 = [data_reach['x_poly'].values[points_selected[-1]]]
+        # y_sel_2 = [data_reach['y_poly'].values[points_selected[-1]]]
+        # fig.add_trace(go.Scatter(x=x_sel_2, y=y_sel_2, mode='markers',
+        #                          marker=dict(color='red')))
+        x_sel = data_reach['x_poly'].values[min(points_selected): max(
+            points_selected)]
+        y_sel = data_reach['y_poly'].values[min(points_selected): max(
+            points_selected)]
         fig.add_trace(go.Scatter(x=x_sel, y=y_sel, line=dict(color='red')))
 
     return fig
@@ -146,7 +134,6 @@ def update_meander_points(fig, data_reach, points_selected):
 def new_river_plot(x, y, id_reach):
     fig_river = go.Figure()
     fig_river.add_trace(go.Scatter(x=x, y=y, line=dict(color='black')))
-    # fig = px.line(data_pd, x='x', y='y', color='Order')
     fig_river.update_yaxes(
         scaleanchor="x",
         scaleratio=1,
@@ -164,7 +151,7 @@ points_selected = []
 saved_data = 0
 
 # Open Data
-# file_open = open('demo_data/data_input.p', "rb")
+# file_open = open('data/data_input.p', "rb")
 # data = pickle.load(file_open)
 # file_open.close()
 # id_reach = 0
@@ -184,7 +171,7 @@ data_meander = {
 # ----------------
 # Create Figure
 # ----------------
-fig_river = new_river_plot(x, y, 0)
+figure_river = new_river_plot(x, y, 0)
 
 # ----------------
 # Web page Styles
@@ -283,7 +270,7 @@ app.layout = html.Div(
             children=[
                 html.Div(
                     children=dcc.Graph(
-                        id='figure-general', figure=fig_river),
+                        id='figure-general', figure=figure_river),
                     className='card'
                 )
             ],
@@ -318,14 +305,15 @@ class DataMeander:
     Output('meanders', 'data'),
     Output('meanders-created', 'children'),
     Output('figure-general', 'clickData'),
-    Input('figure-general', 'figure'),
+    # Input('figure-general', 'figure'),
     Input('load-river', 'n_clicks'),
     Input('new-meander', 'n_clicks'),
     Input('figure-general', 'clickData'),
     State('meanders', 'data'),
 )
-def update_river_figure(figure_river, n_clicks_load_river,
+def update_river_figure(n_clicks_load_river,
                         n_clicks_new_meander, clickData, data_meander):
+    global figure_river
 
     data_meander = data_meander or {'meanders': {},
                                     'id_meanders': ['All', 'None']}

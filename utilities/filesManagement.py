@@ -12,35 +12,44 @@ The functions given on this package allow the user to save data in different
 formats
 
 """
+
 # ------------------------
 # Importing Modules
-# ------------------------ 
+# ------------------------
 # Data Managment
 import copy
 import pickle
 import scipy.io as sio
 import pandas as pd
-from scipy import special
-# import fiona
 import json
+import h5py
 import numpy as np
-import glob as gl
-import os
 
-# Personal Libraries
+# Personal libaries
 from . import utilities as utl
 from . import classExceptions as CE
+
 
 # ------------------------
 # Functions
 # ------------------------
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 def get_save_formats():
-    return ['p', 'mat', 'json', 'txt', 'csv', 'shp']
+    return ['p', 'mat', 'json', 'txt', 'csv', 'shp', 'hdf5']
+
 
 def get_load_formats():
-    return ['p', 'mat', 'json', 'txt', 'csv', 'shp', 'dbf']
+    return ['p', 'mat', 'json', 'txt', 'csv', 'shp', 'dbf', 'hdf5']
 
 
 def save_data(data, path_output, file_name, *args, **kwargs):
@@ -97,11 +106,17 @@ def save_data(data, path_output, file_name, *args, **kwargs):
         file_open.close()
     elif extension == 'json':
         with open(name_out, 'w') as json_file:
-            json.dump(data, json_file)
+            json.dump(data, json_file, cls=NpEncoder)
     elif extension == 'shp':
         if isinstance(data, pd.DataFrame):
             data = gpd.GeoDataFrame(data, geometry=data.geometry)
         data.to_file(name_out)
+    elif extension == 'hdf5':
+        with h5py.File(name_out, 'w') as f:
+            for key in list(data):
+                items = data[key]
+                f[str(key)] = items
+                # f[key] = [float(i) for i in items]
     else:
         raise CE.FormatError(
             f'format .{extension} not implemented. '
@@ -120,7 +135,7 @@ def load_data(file_data, pandas_dataframe=False, *args, **kwargs):
             Data file
         :param pandas_dataframe: boolean,
             If true returns a pandas dataframe instead of a dictionary.
-                                
+
     _______________________________________________________________________
     OUTPUT:
         :return data: dict,
@@ -131,6 +146,11 @@ def load_data(file_data, pandas_dataframe=False, *args, **kwargs):
     # ---------------------
     if not isinstance(file_data, str):
         raise TypeError('data must be a string.')
+
+    try:
+        keys = kwargs['keys']
+    except:
+        keys = None
 
     # ---------------------
     # load data
@@ -150,6 +170,19 @@ def load_data(file_data, pandas_dataframe=False, *args, **kwargs):
     elif extension == 'json':
         with open(file_data) as f:
             data = json.load(f)
+    elif extension == 'shp':
+        data = gpd.read_file(file_data)
+    elif extension == 'dbf':
+        dbf = Dbf5(file_data)
+        df = dbf.to_dataframe()
+        data = {}
+        for i in df.columns:
+            data[i] = df[i].values
+    elif extension == 'hdf5':
+        with h5py.File(file_data, 'r') as f:
+            if keys is None:
+                keys = list(f.keys())
+            data = {key: np.array(f[key]) for key in keys}
     else:
         raise CE.FormatError(
             f'format .{extension} not implemented. '
@@ -157,4 +190,3 @@ def load_data(file_data, pandas_dataframe=False, *args, **kwargs):
     if pandas_dataframe:
         data = pd.DataFrame.from_dict(data)
     return data
-
