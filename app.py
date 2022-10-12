@@ -49,11 +49,6 @@ database = Database(db)
 database.create_meander_table()
 db.close()
 # -----------------------
-# Load Test Variables
-# -----------------------
-data = pd.read_csv('data/meander_database.csv')
-data.set_index('id', inplace=True)
-# -----------------------
 # Web App
 # -----------------------
 app = Flask(__name__)
