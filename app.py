@@ -69,6 +69,7 @@ def submission():
     data = pd.read_json(data)
     db = psycopg2.connect(db_url)
     database = Database(db)
+    database.create_meander_table()
     database.new_entry(data)
     print('submitted')
     database.close()
